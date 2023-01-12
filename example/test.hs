@@ -36,7 +36,7 @@ readStr :: String
 readStr = "Test 2 'e' \"fg\"   "
 
 testRead :: [(Test Char, String)]
-testRead = readsPrec 0 readStr
+testRead = reads readStr
 
 testRead1 :: [(Test Char, String)]
 testRead1 = readsPrec1 0 readStr
@@ -58,7 +58,7 @@ crestReadStr :: String
 crestReadStr = "Crest 3 \"foo\" [True] rest of text"
 
 crestRead, crestRead1, crestRead2 :: [(Crest Char Bool, String)]
-crestRead = readsPrec 0 crestReadStr
+crestRead = reads crestReadStr
 crestRead1 = readsPrec1 0 crestReadStr
 crestRead2 = readsPrec2 0 crestReadStr
 
