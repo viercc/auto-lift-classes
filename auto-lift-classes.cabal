@@ -17,7 +17,7 @@ tested-with:         GHC ==8.6.5, GHC ==8.8.4, GHC ==8.10.7, GHC ==9.0.2, GHC ==
 source-repository head
   type:     git
   location: https://github.com/viercc/auto-lift-classes
-  branch:   master
+  branch:   main
 
 library
   exposed-modules:    AutoLift, AutoLift.Machinery
