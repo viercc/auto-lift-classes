@@ -5,6 +5,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 -- | Derive lifted version of 'Show' or 'Read' classes, like @'Show1' f@ or @'Read1' f@,
 --   from derivable instance @forall a. Show a => Show (f a)@.
@@ -62,6 +65,8 @@ wrapShowDict1 = coerce
 wrapReadDict1 :: ReadDict (f a) -> ReadDict (Reflected1 f a)
 wrapReadDict1 = coerce
 
+deriving newtype instance Show (f a) => Show (Reflected1 f a)
+
 instance
   ( forall a. Show a => Show (f a),
     forall xx yy. Coercible xx yy => Coercible (f xx) (f yy)
@@ -74,6 +79,8 @@ instance
   liftShowList showsPrecB showListB =
     let showFB = wrapShowDict1 $ autoShow1 @f (ShowDict showsPrecB showListB)
      in _showList showFB
+
+deriving newtype instance Read (f a) => Read (Reflected1 f a)
 
 instance
   ( forall a. Read a => Read (f a),
@@ -126,6 +133,18 @@ wrapShowDict2 = coerce
 wrapReadDict2 :: ReadDict (f a b) -> ReadDict (Reflected2 f a b)
 wrapReadDict2 = coerce
 
+deriving newtype instance Show (f a b) => Show (Reflected2 f a b)
+
+instance (forall y. Show y => Show (f a y),
+          forall x y. Coercible x y => Coercible (f a x) (f a y)) => Show1 (Reflected2 f a) where
+  liftShowsPrec showsPrecB showListB =
+    let showFAB = wrapShowDict2 $ autoShow1 @(f a) (ShowDict showsPrecB showListB)
+     in _showsPrec showFAB
+  
+  liftShowList showsPrecB showListB = 
+    let showFAB = wrapShowDict2 $ autoShow1 @(f a) (ShowDict showsPrecB showListB)
+     in _showList showFAB
+
 instance
   ( forall a b. (Show a, Show b) => Show (f a b),
     forall x1 y1 x2 y2.
@@ -140,6 +159,18 @@ instance
   liftShowList2 showsPrecC showListC showsPrecD showListD =
     let showFCD = wrapShowDict2 $ autoShow2 @f (ShowDict showsPrecC showListC) (ShowDict showsPrecD showListD)
      in _showList showFCD
+
+deriving newtype instance Read (f a b) => Read (Reflected2 f a b)
+
+instance (forall y. Read y => Read (f a y),
+          forall x y. Coercible x y => Coercible (f a x) (f a y)) => Read1 (Reflected2 f a) where
+  liftReadPrec readPrecB readListB =
+    let readFAB = wrapReadDict2 $ autoRead1 @(f a) (ReadDict readPrecB readListB)
+     in _readPrec readFAB
+  
+  liftReadListPrec readPrecB readListB =
+    let readFAB = wrapReadDict2 $ autoRead1 @(f a) (ReadDict readPrecB readListB)
+     in _readListPrec readFAB
 
 instance
   ( forall a b. (Read a, Read b) => Read (f a b),
