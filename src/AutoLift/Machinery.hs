@@ -5,21 +5,28 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor #-}
 -- | Internal workings of "AutoLift". You usually don't need to import
 --   this module.
 module AutoLift.Machinery (
     AdHoc(..),
-    ShowDict(..), showDict, autoShow1, autoShow2,
-    ReadDict(..), readDict, autoRead1, autoRead2
+    ShowDict(..), showDict,
+    autoShow1, autoShow2,
+    autoShow1Functor, autoShow2Bifunctor,
+
+    ReadDict(..), readDict,
+    autoRead1, autoRead2,
+    autoRead1Functor, autoRead2Bifunctor
 ) where
 
 import Data.Reflection
 import Data.Proxy
 import Data.Coerce
 import Text.Read
+import Data.Bifunctor
 
 -- | Apply ad hoc instances on type @a@.
-newtype AdHoc s a = AdHoc a
+newtype AdHoc s a = AdHoc { unAdHoc :: a }
 
 -- * Show
 
@@ -32,6 +39,12 @@ data ShowDict a = ShowDict
 showDict :: forall a. Show a => ShowDict a
 showDict = ShowDict { _showsPrec = showsPrec, _showList = showList }
 {-# INLINE showDict #-}
+
+contramapShowDict :: (a -> b) -> ShowDict b -> ShowDict a
+contramapShowDict f sd = ShowDict{ _showsPrec = showsPrec', _showList = showList' }
+  where
+    showsPrec' p a = _showsPrec sd p (f a)
+    showList' as = _showList sd (f <$> as)
 
 instance (Reifies s (ShowDict a)) => Show (AdHoc s a) where
   showsPrec = coerce $ _showsPrec (reflect (Proxy @s))
@@ -60,6 +73,17 @@ autoShow1 showB = reify showB body
     body _ = coerce $ showDict @(f (AdHoc name b))
 {-# INLINABLE autoShow1 #-}
 
+autoShow1Functor :: forall f b.
+     (forall a. Show a => Show (f a))
+  => Functor f
+  => ShowDict b
+  -> ShowDict (f b)
+autoShow1Functor showB = reify showB body
+  where
+    body :: forall name. Reifies name (ShowDict b) => Proxy name -> ShowDict (f b)
+    body _ = contramapShowDict (fmap AdHoc) $ showDict @(f (AdHoc name b))
+{-# INLINABLE autoShow1Functor #-}
+
 -- | Automatic Show2
 autoShow2 :: forall f c d.
      (forall a b. (Show a, Show b) => Show (f a b))
@@ -79,6 +103,22 @@ autoShow2 showC showD =
     body _ _ = coerce $ showDict @(f (AdHoc name1 c) (AdHoc name2 d))
 {-# INLINABLE autoShow2 #-}
 
+autoShow2Bifunctor :: forall f c d.
+     (forall a b. (Show a, Show b) => Show (f a b))
+  => Bifunctor f
+  => ShowDict c
+  -> ShowDict d
+  -> ShowDict (f c d)
+autoShow2Bifunctor showC showD =
+  reify showC $ \proxyC ->
+    reify showD $ \proxyD ->
+      body proxyC proxyD
+  where
+    body :: forall name1 name2. (Reifies name1 (ShowDict c), Reifies name2 (ShowDict d))
+         => Proxy name1 -> Proxy name2 -> ShowDict (f c d)
+    body _ _ = contramapShowDict (bimap AdHoc AdHoc) $ showDict @(f (AdHoc name1 c) (AdHoc name2 d))
+{-# INLINABLE autoShow2Bifunctor #-}
+
 -- * Read
 
 -- | Injected dictionary of 'Read'
@@ -86,6 +126,7 @@ data ReadDict a = ReadDict
   { _readPrec :: ReadPrec a
   , _readListPrec :: ReadPrec [a]
   }
+  deriving Functor
 
 readDict :: forall a. Read a => ReadDict a
 readDict = ReadDict{ _readPrec = readPrec, _readListPrec = readListPrec }
@@ -110,6 +151,18 @@ autoRead1 readB =
     body _ = coerce (readDict @(f (AdHoc name b)))
 {-# INLINABLE autoRead1 #-}
 
+autoRead1Functor :: forall f b.
+     (forall a. Read a => Read (f a))
+  => Functor f
+  => ReadDict b
+  -> ReadDict (f b)
+autoRead1Functor readB =
+  reify readB body
+  where
+    body :: forall name. (Reifies name (ReadDict b)) => Proxy name -> ReadDict (f b)
+    body _ = fmap (fmap unAdHoc) $ readDict @(f (AdHoc name b))
+{-# INLINABLE autoRead1Functor #-}
+
 autoRead2 :: forall f c d.
      (forall a b. (Read a, Read b) => Read (f a b))
   => (forall x1 x2 y1 y2.
@@ -127,3 +180,19 @@ autoRead2 readC readD =
          => Proxy name1 -> Proxy name2 -> ReadDict (f c d)
     body _ _ = coerce (readDict @(f (AdHoc name1 c) (AdHoc name2 d)))
 {-# INLINABLE autoRead2 #-}
+
+autoRead2Bifunctor :: forall f c d.
+     (forall a b. (Read a, Read b) => Read (f a b))
+  => Bifunctor f
+  => ReadDict c
+  -> ReadDict d
+  -> ReadDict (f c d)
+autoRead2Bifunctor readC readD =
+  reify readC $ \proxyC ->
+    reify readD $ \proxyD ->
+      body proxyC proxyD
+  where
+    body :: forall name1 name2. (Reifies name1 (ReadDict c), Reifies name2 (ReadDict d))
+         => Proxy name1 -> Proxy name2 -> ReadDict (f c d)
+    body _ _ = fmap (bimap unAdHoc unAdHoc) $ readDict @(f (AdHoc name1 c) (AdHoc name2 d))
+{-# INLINABLE autoRead2Bifunctor #-}
