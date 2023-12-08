@@ -36,7 +36,7 @@ import Data.Bifunctor ( Bifunctor )
 --   > instance Show a => Show (f a)
 --   > instance Read a => Read (f a)
 --
---   Unlike 'AutoLift.Coercible.Reflected1' from 'AutoLift.Coercible' module, this wrapper
+--   Unlike 'AutoLift.Coercible.Reflected1' from "AutoLift.Coercible" module, this wrapper
 --   requires 'Functor' instance too.
 --
 -- ==== Example
@@ -108,7 +108,7 @@ instance
 --   > instance (Show a, Show b) => Show (f a b)
 --   > instance (Read a, Read b) => Read (f a b)
 --
---   Unlike 'AutoLift.Coercible.Reflected2' from 'AutoLift.Coercible' module, this wrapper
+--   Unlike 'AutoLift.Coercible.Reflected2' from "AutoLift.Coercible" module, this wrapper
 --   requires 'Data.Bifunctor.Bifunctor' instance too.
 --
 --   > instance Bifunctor f
